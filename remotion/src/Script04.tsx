@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Sequence } from "remotion";
+import { AbsoluteFill, Audio, Sequence, staticFile } from "remotion";
 import { Background } from "./Background";
 import { SCENES } from "./timing";
 import { Hook } from "./scenes/Hook";
@@ -8,36 +8,43 @@ import { Teaching } from "./scenes/Teaching";
 import { Application } from "./scenes/Application";
 import { Cta } from "./scenes/Cta";
 
-// To add voiceover: drop an audio file at public/voiceover.mp3 (matching
-// the spoken lines in scripts/script-04-self-care-isnt-selfish-stewardship.md),
-// then uncomment the import and <Audio /> line below.
-// import { Audio, staticFile } from "remotion";
-
+// Each scene component places its own per-line Sequences relative to its
+// own start (see SCENES.*.lines[].from in timing.ts), so it must be
+// wrapped here at its scene-level absolute start frame.
 export const Script04: React.FC = () => {
   return (
     <AbsoluteFill>
       <Background />
 
-      <Sequence from={SCENES.hook.from} durationInFrames={SCENES.hook.durationInFrames}>
+      <Sequence from={SCENES.hook.from} durationInFrames={SCENES.hook.durationInFrames} layout="none">
         <Hook />
       </Sequence>
-      <Sequence from={SCENES.scripture.from} durationInFrames={SCENES.scripture.durationInFrames}>
+      <Sequence
+        from={SCENES.scripture.from}
+        durationInFrames={SCENES.scripture.durationInFrames}
+        layout="none"
+      >
         <Scripture />
       </Sequence>
-      <Sequence from={SCENES.teaching.from} durationInFrames={SCENES.teaching.durationInFrames}>
+      <Sequence
+        from={SCENES.teaching.from}
+        durationInFrames={SCENES.teaching.durationInFrames}
+        layout="none"
+      >
         <Teaching />
       </Sequence>
       <Sequence
         from={SCENES.application.from}
         durationInFrames={SCENES.application.durationInFrames}
+        layout="none"
       >
         <Application />
       </Sequence>
-      <Sequence from={SCENES.cta.from} durationInFrames={SCENES.cta.durationInFrames}>
+      <Sequence from={SCENES.cta.from} durationInFrames={SCENES.cta.durationInFrames} layout="none">
         <Cta />
       </Sequence>
 
-      {/* <Audio src={staticFile("voiceover.mp3")} /> */}
+      <Audio src={staticFile("music.mp3")} />
     </AbsoluteFill>
   );
 };
