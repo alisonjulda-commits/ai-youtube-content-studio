@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Star, Trash2, Copy, Check, Search } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,9 +31,27 @@ export default function PromptLibraryPage() {
     fetchPrompts();
   }, []);
 
+  const filterPrompts = useCallback(() => {
+    let filtered = prompts;
+
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (prompt) =>
+          prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          prompt.content.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (categoryFilter) {
+      filtered = filtered.filter((prompt) => prompt.category === categoryFilter);
+    }
+
+    setFilteredPrompts(filtered);
+  }, [prompts, searchTerm, categoryFilter]);
+
   useEffect(() => {
     filterPrompts();
-  }, [prompts, searchTerm, categoryFilter]);
+  }, [filterPrompts]);
 
   async function fetchPrompts() {
     setIsLoading(true);
@@ -50,24 +68,6 @@ export default function PromptLibraryPage() {
     } finally {
       setIsLoading(false);
     }
-  }
-
-  function filterPrompts() {
-    let filtered = prompts;
-
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (prompt) =>
-          prompt.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          prompt.content.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (categoryFilter) {
-      filtered = filtered.filter((prompt) => prompt.category === categoryFilter);
-    }
-
-    setFilteredPrompts(filtered);
   }
 
   async function handleSubmit(e: React.FormEvent) {

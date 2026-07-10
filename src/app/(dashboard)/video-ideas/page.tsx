@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Search, Trash2, Edit2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -32,9 +32,27 @@ export default function VideoIdeasPage() {
     fetchIdeas();
   }, []);
 
+  const filterIdeas = useCallback(() => {
+    let filtered = ideas;
+
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (idea) =>
+          idea.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          idea.description?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (categoryFilter) {
+      filtered = filtered.filter((idea) => idea.category === categoryFilter);
+    }
+
+    setFilteredIdeas(filtered);
+  }, [ideas, searchTerm, categoryFilter]);
+
   useEffect(() => {
     filterIdeas();
-  }, [ideas, searchTerm, categoryFilter]);
+  }, [filterIdeas]);
 
   async function fetchIdeas() {
     setIsLoading(true);
@@ -51,24 +69,6 @@ export default function VideoIdeasPage() {
     } finally {
       setIsLoading(false);
     }
-  }
-
-  function filterIdeas() {
-    let filtered = ideas;
-
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (idea) =>
-          idea.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          idea.description?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (categoryFilter) {
-      filtered = filtered.filter((idea) => idea.category === categoryFilter);
-    }
-
-    setFilteredIdeas(filtered);
   }
 
   async function handleSubmit(e: React.FormEvent) {

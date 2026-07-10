@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Wand2, Copy, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,11 +26,7 @@ export default function ScriptWriterPage() {
     tone: 'informative',
   });
 
-  useEffect(() => {
-    fetchScripts();
-  }, []);
-
-  async function fetchScripts() {
+  const fetchScripts = useCallback(async () => {
     setIsLoading(true);
     try {
       const response = await fetch('/api/scripts', {
@@ -48,7 +44,11 @@ export default function ScriptWriterPage() {
     } finally {
       setIsLoading(false);
     }
-  }
+  }, [selectedScript]);
+
+  useEffect(() => {
+    fetchScripts();
+  }, [fetchScripts]);
 
   async function handleGenerateScript(e: React.FormEvent) {
     e.preventDefault();
