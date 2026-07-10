@@ -3,10 +3,15 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X, Lightbulb, PenTool, Search, FileText, Settings, Film } from 'lucide-react';
+import { Menu, X, Lightbulb, PenTool, Search, FileText, Settings, Film, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
+  {
+    name: 'Workflow',
+    href: '/workflow',
+    icon: Zap,
+  },
   {
     name: 'Video Ideas',
     href: '/video-ideas',

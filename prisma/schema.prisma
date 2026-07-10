@@ -23,23 +23,36 @@ model User {
 }
 
 model VideoIdea {
-  id          String   @id @default(cuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  category    String
-  priority    String   @default("medium")
-  difficulty  String   @default("medium")
-  status      String   @default("idea")
-  tags        String?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title                 String
+  description           String?
+  category              String
+  priority              String   @default("medium")
+  difficulty            String   @default("medium")
+  status                String   @default("idea")
+  tags                  String?
+  notes                 String?
 
-  scripts Script[]
+  workflowStep          String   @default("idea")
+  researchNotesId       String?
+  researchNotes         ResearchNotes? @relation(fields: [researchNotesId], references: [id], onDelete: SetNull)
+  scriptId              String?
+  seoDataId             String?
+  thumbnailPromptId     String?
+  thumbnailPrompt       ThumbnailPrompt? @relation(fields: [thumbnailPromptId], references: [id], onDelete: SetNull)
+  videoId               String?
+  youtubeUploadId       String?
+  youtubeUpload         YoutubeUpload? @relation(fields: [youtubeUploadId], references: [id], onDelete: SetNull)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  scripts               Script[]
 
   @@index([userId])
+  @@index([workflowStep])
 }
 
 model Script {
@@ -132,6 +145,49 @@ model Prompt {
 
   @@index([userId])
   @@index([category])
+}
+
+model ResearchNotes {
+  id        String   @id @default(cuid())
+  userId    String
+  content   String
+  sources   String?
+  keywords  String?
+  insights  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  videoIdeas VideoIdea[]
+}
+
+model ThumbnailPrompt {
+  id        String   @id @default(cuid())
+  userId    String
+  prompt    String
+  style     String   @default("modern")
+  keywords  String?
+  colors    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  videoIdeas VideoIdea[]
+}
+
+model YoutubeUpload {
+  id          String   @id @default(cuid())
+  userId      String
+  videoId     String?
+  title       String
+  description String?
+  tags        String?
+  playlist    String?
+  visibility  String   @default("private")
+  uploadedAt  DateTime?
+  youtubeUrl  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  videoIdeas  VideoIdea[]
 }
 
 model Settings {
