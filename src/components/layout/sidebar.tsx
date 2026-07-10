@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X, Lightbulb, PenTool, Search, FileText, Settings } from 'lucide-react';
+import { Menu, X, Lightbulb, PenTool, Search, FileText, Settings, Film } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -16,6 +16,11 @@ const navItems = [
     name: 'Script Writer',
     href: '/script-writer',
     icon: PenTool,
+  },
+  {
+    name: 'Video Generator',
+    href: '/video-generator',
+    icon: Film,
   },
   {
     name: 'SEO Generator',
