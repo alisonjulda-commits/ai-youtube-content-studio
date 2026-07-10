@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Save } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,8 @@ import { Select } from '@/components/ui/select';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({
-    channelName: 'My Channel',
+    ownerName: 'Julda Marie Alison',
+    channelName: 'Julda Marie Alison',
     channelDescription: '',
     anthropicApiKey: '',
     openaiApiKey: '',
@@ -19,11 +20,60 @@ export default function SettingsPage() {
     theme: 'system',
   });
 
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    fetchSettings();
+  }, []);
+
+  async function fetchSettings() {
+    try {
+      const response = await fetch('/api/settings', {
+        headers: { 'x-user-id': 'default-user' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setSettings(prev => ({ ...prev, ...data }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch settings:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   async function handleSave() {
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2000);
+    try {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': 'default-user',
+        },
+        body: JSON.stringify(settings),
+      });
+
+      if (response.ok) {
+        setIsSaved(true);
+        setError('');
+        setTimeout(() => setIsSaved(false), 2000);
+      } else {
+        setError('Failed to save settings');
+      }
+    } catch (err) {
+      setError('Error saving settings');
+      console.error('Failed to save settings:', err);
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <p className="text-muted-foreground">Loading settings...</p>
+      </div>
+    );
   }
 
   return (
@@ -36,10 +86,18 @@ export default function SettingsPage() {
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Channel Information</CardTitle>
-            <CardDescription>Your YouTube channel details</CardDescription>
+            <CardTitle>Creator Information</CardTitle>
+            <CardDescription>Your personal branding and channel details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">Owner Name</label>
+              <Input
+                value={settings.ownerName}
+                onChange={(e) => setSettings({ ...settings, ownerName: e.target.value })}
+                placeholder="Your name"
+              />
+            </div>
             <div>
               <label className="text-sm font-medium">Channel Name</label>
               <Input
@@ -149,6 +207,12 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {error && (
+          <div className="p-3 bg-destructive/10 text-destructive text-sm rounded-md">
+            {error}
+          </div>
+        )}
 
         <div className="flex justify-end">
           <Button onClick={handleSave} className="gap-2">

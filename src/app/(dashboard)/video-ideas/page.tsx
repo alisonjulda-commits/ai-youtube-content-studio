@@ -9,6 +9,7 @@ import { Select } from '@/components/ui/select';
 import { Modal } from '@/components/ui/modal';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/ui/empty-state';
+import { CategoryTemplates } from '@/components/category-templates';
 import { CATEGORIES, STATUSES } from '@/lib/constants';
 import type { VideoIdea } from '@/types';
 
@@ -142,6 +143,8 @@ export default function VideoIdeasPage() {
           ))}
         </Select>
       </div>
+
+      {categoryFilter && <CategoryTemplates selectedCategory={categoryFilter} />}
 
       {filteredIdeas.length === 0 ? (
         <EmptyState

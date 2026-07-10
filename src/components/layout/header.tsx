@@ -1,15 +1,36 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 
 export function Header() {
   const { theme, setTheme } = useTheme();
+  const [channelName, setChannelName] = useState('YouTube Content Studio');
+
+  useEffect(() => {
+    fetchChannelName();
+  }, []);
+
+  async function fetchChannelName() {
+    try {
+      const response = await fetch('/api/settings', {
+        headers: { 'x-user-id': 'default-user' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setChannelName(data.channelName || 'YouTube Content Studio');
+      }
+    } catch (error) {
+      console.error('Failed to fetch channel name:', error);
+    }
+  }
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-sm">
-      <div className="flex items-center justify-end h-16 px-6">
+      <div className="flex items-center justify-between h-16 px-6">
+        <h2 className="text-lg font-semibold">{channelName}</h2>
         <Button
           variant="ghost"
           size="icon"
