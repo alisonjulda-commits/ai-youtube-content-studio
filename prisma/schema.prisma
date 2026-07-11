@@ -20,6 +20,7 @@ model User {
   prompts      Prompt[]
   analytics    Analytics[]
   settings     Settings?
+  youtubeAuth  YouTubeAuth?
 }
 
 model VideoIdea {
@@ -210,8 +211,30 @@ model Settings {
   brandPrimaryColor String   @default("#6366f1")
   brandSecondaryColor String  @default("#ec4899")
   theme             String   @default("system")
+  youtubeConnected  Boolean   @default(false)
+  youtubeChannelId  String?
+  youtubeChannelName String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+model YouTubeAuth {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken     String   // Will be encrypted at application level
+  refreshToken    String   // Will be encrypted at application level
+  tokenExpiry     DateTime
+  scope           String   @default("https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube.readonly")
+  channelId       String   @unique
+  channelName     String
+  profileImage    String?
+  connectedAt     DateTime @default(now())
+  lastRefreshed   DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([channelId])
 }
 
 model Analytics {

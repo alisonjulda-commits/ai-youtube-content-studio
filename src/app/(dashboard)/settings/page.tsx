@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Save } from 'lucide-react';
+import { Save, Youtube, LogOut, CheckCircle, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,10 +23,98 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaved, setIsSaved] = useState(false);
   const [error, setError] = useState('');
+  const [youtubeStatus, setYoutubeStatus] = useState<any>(null);
+  const [youtubeLoading, setYoutubeLoading] = useState(false);
 
   useEffect(() => {
     fetchSettings();
+    fetchYoutubeStatus();
   }, []);
+
+  useEffect(() => {
+    checkYoutubeCallback();
+  }, []);
+
+  async function fetchYoutubeStatus() {
+    try {
+      const response = await fetch('/api/youtube/auth/status', {
+        headers: { 'x-user-id': 'default-user' },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setYoutubeStatus(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch YouTube status:', err);
+    }
+  }
+
+  function checkYoutubeCallback() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('youtube_success')) {
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 3000);
+      fetchYoutubeStatus();
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    if (params.get('youtube_error')) {
+      setError(`YouTube connection failed: ${params.get('youtube_error')}`);
+      setTimeout(() => setError(''), 5000);
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }
+
+  async function handleYoutubeConnect() {
+    try {
+      setYoutubeLoading(true);
+      const response = await fetch('/api/youtube/auth/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: 'default-user' }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        window.location.href = data.authUrl;
+      } else {
+        setError('Failed to start YouTube connection');
+      }
+    } catch (err) {
+      setError('Error connecting to YouTube');
+      console.error('YouTube connect error:', err);
+    } finally {
+      setYoutubeLoading(false);
+    }
+  }
+
+  async function handleYoutubeDisconnect() {
+    if (!confirm('Are you sure you want to disconnect your YouTube account?')) {
+      return;
+    }
+
+    try {
+      setYoutubeLoading(true);
+      const response = await fetch('/api/youtube/auth/disconnect', {
+        method: 'POST',
+        headers: { 'x-user-id': 'default-user' },
+      });
+
+      if (response.ok) {
+        setYoutubeStatus({ connected: false });
+        setIsSaved(true);
+        setTimeout(() => setIsSaved(false), 2000);
+      } else {
+        setError('Failed to disconnect YouTube account');
+      }
+    } catch (err) {
+      setError('Error disconnecting YouTube');
+      console.error('YouTube disconnect error:', err);
+    } finally {
+      setYoutubeLoading(false);
+    }
+  }
 
   async function fetchSettings() {
     try {
@@ -149,6 +237,67 @@ export default function SettingsPage() {
                 placeholder="sk-..."
               />
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Youtube className="w-5 h-5 text-red-600" />
+              YouTube Connection
+            </CardTitle>
+            <CardDescription>Connect your YouTube account for direct uploads</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {youtubeStatus?.connected ? (
+              <div className="space-y-4">
+                <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800 space-y-3">
+                  <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                    <CheckCircle className="w-5 h-5" />
+                    <span className="font-medium">Connected</span>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <p>
+                      <span className="text-muted-foreground">Channel:</span>{' '}
+                      <span className="font-medium">{youtubeStatus.channelName}</span>
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Connected since:</span>{' '}
+                      <span className="font-medium">
+                        {new Date(youtubeStatus.connectedAt).toLocaleDateString()}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="destructive"
+                  onClick={handleYoutubeDisconnect}
+                  disabled={youtubeLoading}
+                  className="w-full gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  {youtubeLoading ? 'Disconnecting...' : 'Disconnect YouTube'}
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="p-4 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800 flex items-gap gap-2">
+                  <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-amber-700 dark:text-amber-300">
+                    <p className="font-medium">Not connected</p>
+                    <p className="text-xs mt-1">Connect your YouTube account to upload videos directly from the studio</p>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleYoutubeConnect}
+                  disabled={youtubeLoading}
+                  className="w-full bg-red-600 hover:bg-red-700 gap-2"
+                >
+                  <Youtube className="w-4 h-4" />
+                  {youtubeLoading ? 'Connecting...' : 'Connect YouTube Account'}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
