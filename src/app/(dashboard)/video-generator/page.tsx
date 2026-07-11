@@ -55,13 +55,32 @@ const VOICE_PRESETS = [
   { id: 'authoritative', label: 'Authoritative' },
 ];
 
+const MIX_PRESETS = [
+  { id: 'focus', label: 'Focus', description: 'Voiceover dominant, subtle music' },
+  { id: 'energetic', label: 'Energetic', description: 'Balanced, upbeat' },
+  { id: 'calm', label: 'Calm', description: 'Peaceful, gentle music' },
+  { id: 'balanced', label: 'Balanced', description: 'Standard mix' },
+];
+
+interface MusicTrack {
+  id: string;
+  name: string;
+  genre: string;
+  duration: number;
+  bpm?: number;
+}
+
 export default function VideoGeneratorPage() {
   const [scripts, setScripts] = useState<Script[]>([]);
   const [selectedScript, setSelectedScript] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ai-tools');
   const [selectedVoicePreset, setSelectedVoicePreset] = useState<string>('professional');
+  const [selectedMixPreset, setSelectedMixPreset] = useState<string>('balanced');
+  const [musicTracks, setMusicTracks] = useState<MusicTrack[]>([]);
+  const [selectedMusicTrackId, setSelectedMusicTrackId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [isFetchingMusic, setIsFetchingMusic] = useState(false);
   const [generationJobs, setGenerationJobs] = useState<VideoGenerationJob[]>([]);
   const [selectedScriptData, setSelectedScriptData] = useState<Script | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -70,6 +89,10 @@ export default function VideoGeneratorPage() {
   useEffect(() => {
     fetchScripts();
   }, []);
+
+  useEffect(() => {
+    fetchMusicTracks(selectedCategory);
+  }, [selectedCategory]);
 
   async function fetchScripts() {
     try {
@@ -82,6 +105,24 @@ export default function VideoGeneratorPage() {
       }
     } catch (error) {
       console.error('Failed to fetch scripts:', error);
+    }
+  }
+
+  async function fetchMusicTracks(categoryId: string) {
+    setIsFetchingMusic(true);
+    try {
+      const response = await fetch(`/api/audio/music?category=${categoryId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMusicTracks(data.tracks);
+        if (data.tracks.length > 0) {
+          setSelectedMusicTrackId(data.tracks[0].id);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch music tracks:', error);
+    } finally {
+      setIsFetchingMusic(false);
     }
   }
 
@@ -138,7 +179,30 @@ export default function VideoGeneratorPage() {
         { id: 'outro', text: selectedScriptData.outro || '', duration: 200 },
       ].filter((s) => s.text.trim());
 
-      // Step 2: Render video
+      // Step 2: Configure music
+      let musicConfig = null;
+      if (selectedMusicTrackId) {
+        try {
+          const musicResponse = await fetch('/api/audio/music', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              categoryId: selectedCategory,
+              trackId: selectedMusicTrackId,
+              totalDurationSeconds: selectedScriptData.speakingTime || 60,
+              mixPreset: selectedMixPreset,
+            }),
+          });
+
+          if (musicResponse.ok) {
+            musicConfig = await musicResponse.json();
+          }
+        } catch (error) {
+          console.error('Failed to configure music:', error);
+        }
+      }
+
+      // Step 3: Render video
       const response = await fetch('/api/videos/render', {
         method: 'POST',
         headers: {
@@ -153,6 +217,7 @@ export default function VideoGeneratorPage() {
           compositionId: CATEGORY_TO_COMPOSITION[selectedCategory],
           sections,
           voiceoverUrls,
+          musicConfig: musicConfig?.audioSync,
         }),
       });
 
@@ -227,6 +292,36 @@ export default function VideoGeneratorPage() {
                 {VOICE_PRESETS.map((preset) => (
                   <option key={preset.id} value={preset.id}>
                     {preset.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div className="border-t pt-3">
+              <label className="text-sm font-medium block mb-2">🎵 Background Music</label>
+              <Select
+                value={selectedMusicTrackId}
+                onChange={(e) => setSelectedMusicTrackId(e.target.value)}
+                disabled={isFetchingMusic || musicTracks.length === 0}
+              >
+                <option value="">Select music track...</option>
+                {musicTracks.map((track) => (
+                  <option key={track.id} value={track.id}>
+                    {track.name} ({track.genre})
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">Audio Mix</label>
+              <Select
+                value={selectedMixPreset}
+                onChange={(e) => setSelectedMixPreset(e.target.value)}
+              >
+                {MIX_PRESETS.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label} - {preset.description}
                   </option>
                 ))}
               </Select>
