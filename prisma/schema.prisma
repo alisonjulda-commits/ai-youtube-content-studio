@@ -44,8 +44,7 @@ model VideoIdea {
   thumbnailPromptId     String?
   thumbnailPrompt       ThumbnailPrompt? @relation(fields: [thumbnailPromptId], references: [id], onDelete: SetNull)
   videoId               String?
-  youtubeUploadId       String?
-  youtubeUpload         YoutubeUpload? @relation(fields: [youtubeUploadId], references: [id], onDelete: SetNull)
+  youtubeUploads        YoutubeUpload[]
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -183,20 +182,40 @@ model ThumbnailPrompt {
 }
 
 model YoutubeUpload {
-  id          String   @id @default(cuid())
-  userId      String
-  videoId     String?
-  title       String
-  description String?
-  tags        String?
-  playlist    String?
-  visibility  String   @default("private")
-  uploadedAt  DateTime?
-  youtubeUrl  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  userId                String
+  videoIdeaId           String?
+  videoIdea             VideoIdea? @relation(fields: [videoIdeaId], references: [id], onDelete: SetNull)
+  title                 String
+  description           String?
+  tags                  String?
+  category              String    @default("22")
+  language              String    @default("en")
+  license               String    @default("creativeCommon")
+  videoPath             String?
+  videoSize             Int?
+  visibility            String    @default("private")
+  scheduledPublishAt    DateTime?
+  thumbnailPath         String?
+  thumbnailUrl          String?
+  restrictions          String?
+  status                String    @default("draft")
+  uploadProgress        Int       @default(0)
+  youtubeVideoId        String?   @unique
+  youtubeUrl            String?
+  uploadedAt            DateTime?
+  errorMessage          String?
+  errorCode             String?
+  views                 Int       @default(0)
+  likes                 Int       @default(0)
+  comments              Int       @default(0)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
-  videoIdeas  VideoIdea[]
+  @@index([userId])
+  @@index([videoIdeaId])
+  @@index([status])
+  @@index([scheduledPublishAt])
 }
 
 model Settings {
