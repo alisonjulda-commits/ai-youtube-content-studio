@@ -32,6 +32,17 @@ export async function POST(request: NextRequest) {
 
     const validated = videoIdeaSchema.parse(body);
 
+    // Ensure user exists
+    await db.user.upsert({
+      where: { id: userId },
+      update: {},
+      create: {
+        id: userId,
+        email: `${userId}@localhost`,
+        name: 'Default User',
+      },
+    });
+
     const video = await db.videoIdea.create({
       data: {
         ...validated,
