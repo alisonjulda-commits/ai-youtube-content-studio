@@ -14,13 +14,14 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  videoIdeas   VideoIdea[]
-  scripts      Script[]
-  projects     Project[]
-  prompts      Prompt[]
-  analytics    Analytics[]
-  settings     Settings?
-  youtubeAuth  YouTubeAuth?
+  videoIdeas         VideoIdea[]
+  scripts            Script[]
+  projects           Project[]
+  prompts            Prompt[]
+  analytics          Analytics[]
+  settings           Settings?
+  youtubeAuth        YouTubeAuth?
+  thumbnailDesigns   ThumbnailDesign[]
 }
 
 model VideoIdea {
@@ -45,6 +46,7 @@ model VideoIdea {
   thumbnailPrompt       ThumbnailPrompt? @relation(fields: [thumbnailPromptId], references: [id], onDelete: SetNull)
   videoId               String?
   youtubeUploads        YoutubeUpload[]
+  thumbnailDesigns      ThumbnailDesign[]
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -216,6 +218,25 @@ model YoutubeUpload {
   @@index([videoIdeaId])
   @@index([status])
   @@index([scheduledPublishAt])
+}
+
+model ThumbnailDesign {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoIdeaId     String?
+  videoIdea       VideoIdea? @relation(fields: [videoIdeaId], references: [id], onDelete: SetNull)
+  templateId      String
+  title           String
+  colors          String   // JSON: {background, text, accent}
+  textOverrides   String   // JSON: {sectionId: text}
+  svgContent      String   // Cached SVG for quick preview
+  status          String   @default("draft") // draft, approved, exported
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([videoIdeaId])
 }
 
 model Settings {
