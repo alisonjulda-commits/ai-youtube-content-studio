@@ -1,12 +1,39 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Film, PlayCircle, DownloadCloud } from 'lucide-react';
+import { Film, PlayCircle, DownloadCloud, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { EmptyState } from '@/components/ui/empty-state';
+import { Modal } from '@/components/ui/modal';
 import type { Script } from '@/types';
+
+const CONTENT_CATEGORIES = [
+  { id: 'ai-tools', label: 'AI Tools', emoji: '🤖' },
+  { id: 'claude-ai', label: 'Claude AI', emoji: '🧠' },
+  { id: 'chatgpt', label: 'ChatGPT', emoji: '💬' },
+  { id: 'gohighlevel', label: 'GoHighLevel', emoji: '📈' },
+  { id: 'canva', label: 'Canva', emoji: '🎨' },
+  { id: 'teaching', label: 'Teaching', emoji: '📚' },
+  { id: 'virtual-assistant', label: 'Virtual Assistant', emoji: '🤝' },
+  { id: 'productivity', label: 'Productivity', emoji: '⏱️' },
+  { id: 'self-improvement', label: 'Self Improvement', emoji: '💪' },
+  { id: 'youtube-growth', label: 'YouTube Growth', emoji: '📹' },
+];
+
+const CATEGORY_TO_COMPOSITION: Record<string, string> = {
+  'ai-tools': 'AITools',
+  'claude-ai': 'ClaudeAI',
+  'chatgpt': 'ChatGPT',
+  'gohighlevel': 'GoHighLevel',
+  'canva': 'Canva',
+  'teaching': 'Teaching',
+  'virtual-assistant': 'VirtualAssistant',
+  'productivity': 'Productivity',
+  'self-improvement': 'SelfImprovement',
+  'youtube-growth': 'YouTubeGrowth',
+};
 
 interface VideoGenerationJob {
   videoId: string;
@@ -16,14 +43,18 @@ interface VideoGenerationJob {
   voiceoverUrls: Record<string, string>;
   totalSeconds: number;
   downloadUrl?: string;
+  compositionId?: string;
 }
 
 export default function VideoGeneratorPage() {
   const [scripts, setScripts] = useState<Script[]>([]);
   const [selectedScript, setSelectedScript] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ai-tools');
   const [isLoading, setIsLoading] = useState(false);
   const [generationJobs, setGenerationJobs] = useState<VideoGenerationJob[]>([]);
   const [selectedScriptData, setSelectedScriptData] = useState<Script | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [previewCompositionId, setPreviewCompositionId] = useState<string>('');
 
   useEffect(() => {
     fetchScripts();
@@ -43,21 +74,27 @@ export default function VideoGeneratorPage() {
     }
   }
 
+  function handlePreview() {
+    if (!selectedScriptData) return;
+    setPreviewCompositionId(CATEGORY_TO_COMPOSITION[selectedCategory]);
+    setIsPreviewOpen(true);
+  }
+
   async function handleGenerateVideo() {
     if (!selectedScript || !selectedScriptData) return;
 
     setIsLoading(true);
     try {
       const sections = [
-        { id: 'hook', text: selectedScriptData.hook || '' },
-        { id: 'intro', text: selectedScriptData.intro || '' },
-        { id: 'body', text: selectedScriptData.body || '' },
-        { id: 'examples', text: selectedScriptData.examples || '' },
-        { id: 'cta', text: selectedScriptData.cta || '' },
-        { id: 'outro', text: selectedScriptData.outro || '' },
+        { id: 'hook', text: selectedScriptData.hook || '', duration: 300 },
+        { id: 'intro', text: selectedScriptData.intro || '', duration: 300 },
+        { id: 'body', text: selectedScriptData.body || '', duration: 600 },
+        { id: 'examples', text: selectedScriptData.examples || '', duration: 400 },
+        { id: 'cta', text: selectedScriptData.cta || '', duration: 200 },
+        { id: 'outro', text: selectedScriptData.outro || '', duration: 200 },
       ].filter((s) => s.text.trim());
 
-      const response = await fetch('/api/videos/generate', {
+      const response = await fetch('/api/videos/render', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,6 +103,9 @@ export default function VideoGeneratorPage() {
         body: JSON.stringify({
           scriptId: selectedScript,
           title: selectedScriptData.title,
+          hook: selectedScriptData.hook,
+          category: selectedCategory,
+          compositionId: CATEGORY_TO_COMPOSITION[selectedCategory],
           sections,
         }),
       });
@@ -100,6 +140,20 @@ export default function VideoGeneratorPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
+              <label className="text-sm font-medium">Content Category</label>
+              <Select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+              >
+                {CONTENT_CATEGORIES.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.emoji} {category.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
+            <div>
               <label className="text-sm font-medium">Select Script</label>
               <Select
                 value={selectedScript}
@@ -131,23 +185,34 @@ export default function VideoGeneratorPage() {
               </div>
             )}
 
-            <Button
-              onClick={handleGenerateVideo}
-              disabled={!selectedScript || isLoading}
-              className="w-full gap-2"
-            >
-              <Film className="w-4 h-4" />
-              {isLoading ? 'Generating...' : 'Generate Video'}
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                onClick={handlePreview}
+                disabled={!selectedScriptData}
+                variant="outline"
+                className="flex-1 gap-2"
+              >
+                <Eye className="w-4 h-4" />
+                Preview
+              </Button>
+              <Button
+                onClick={handleGenerateVideo}
+                disabled={!selectedScript || isLoading}
+                className="flex-1 gap-2"
+              >
+                <Film className="w-4 h-4" />
+                {isLoading ? 'Generating...' : 'Render'}
+              </Button>
+            </div>
 
             <p className="text-xs text-muted-foreground">
-              Video generation will:
+              Video rendering will:
               <br />
               1. Create TTS voiceover from script
               <br />
               2. Sync with background music
               <br />
-              3. Render final video composition
+              3. Render with Remotion
             </p>
           </CardContent>
         </Card>
@@ -239,6 +304,37 @@ export default function VideoGeneratorPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Preview Modal */}
+      <Modal
+        open={isPreviewOpen}
+        onOpenChange={setIsPreviewOpen}
+        title={`Preview: ${CONTENT_CATEGORIES.find((c) => c.id === selectedCategory)?.label || 'Video'}`}
+      >
+        <div className="space-y-4">
+          <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+            <div className="text-center space-y-2">
+              <p className="text-2xl">
+                {CONTENT_CATEGORIES.find((c) => c.id === selectedCategory)?.emoji}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Remotion Player Preview
+              </p>
+              <p className="text-xs text-muted-foreground max-w-xs">
+                Select a script and click Preview to see your video composition in action.
+              </p>
+              {previewCompositionId && (
+                <p className="text-xs font-mono text-muted-foreground mt-4">
+                  Composition: {previewCompositionId}
+                </p>
+              )}
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            This preview shows how your script will be rendered using the {CONTENT_CATEGORIES.find((c) => c.id === selectedCategory)?.label} theme. The actual rendering happens server-side with audio synchronization.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }
