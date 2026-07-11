@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
-import { Menu, X, Lightbulb, PenTool, Search, FileText, Settings, Film, Zap } from 'lucide-react';
+import { Menu, X, Lightbulb, PenTool, Search, FileText, Settings, Film, Zap, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -28,9 +28,9 @@ const navItems = [
     icon: Film,
   },
   {
-    name: 'SEO Generator',
-    href: '/seo-generator',
-    icon: Search,
+    name: 'SEO Engine',
+    href: '/seo-engine',
+    icon: Sparkles,
   },
   {
     name: 'Prompt Library',

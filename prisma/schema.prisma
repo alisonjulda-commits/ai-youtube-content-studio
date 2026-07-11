@@ -76,6 +76,14 @@ model Script {
   updatedAt     DateTime  @updatedAt
 
   seoData SEOData?
+  seoTitles SEOTitles?
+  seoDescriptions SEODescriptions?
+  seoChapters SEOChapters?
+  seoTags SEOTags?
+  seoHashtags SEOHashtags?
+  seoKeywords SEOKeywords?
+  contentAssets ContentAssets?
+  seoScorecard SEOScorecard?
 
   @@index([userId])
   @@index([videoIdeaId])
@@ -223,4 +231,127 @@ model Analytics {
   updatedAt   DateTime @updatedAt
 
   @@index([userId])
+}
+
+model SEOTitles {
+  id            String   @id @default(cuid())
+  userId        String
+  scriptId      String   @unique
+  script        Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  titles        String   // JSON array: [{text: string, score: 1-100}]
+  selectedTitle String
+  ctrScore      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([scriptId])
+}
+
+model SEODescriptions {
+  id            String   @id @default(cuid())
+  userId        String
+  scriptId      String   @unique
+  script        Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  descriptions  String   // JSON array of description options
+  selectedDescription String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([userId])
+  @@index([scriptId])
+}
+
+model SEOChapters {
+  id        String   @id @default(cuid())
+  userId    String
+  scriptId  String   @unique
+  script    Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  chapters  String   // JSON array: [{timestamp: string, title: string}]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([scriptId])
+}
+
+model SEOTags {
+  id        String   @id @default(cuid())
+  userId    String
+  scriptId  String   @unique
+  script    Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  tags      String   // JSON array of tags
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([scriptId])
+}
+
+model SEOHashtags {
+  id        String   @id @default(cuid())
+  userId    String
+  scriptId  String   @unique
+  script    Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  hashtags  String   // JSON array of hashtags
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([scriptId])
+}
+
+model SEOKeywords {
+  id              String   @id @default(cuid())
+  userId          String
+  scriptId        String   @unique
+  script          Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  primaryKeyword  String
+  secondaryKeywords String  // JSON array
+  longTailKeywords String   // JSON array
+  searchCompetition Int    @default(0)  // 1-100
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([scriptId])
+}
+
+model ContentAssets {
+  id                String   @id @default(cuid())
+  userId            String
+  scriptId          String   @unique
+  script            Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  thumbnailTexts    String   // JSON array of 5 thumbnail text variations
+  hookVariations    String   // JSON array of 10 hook variations
+  pinnedComments    String   // JSON array of 5 pinned comment ideas
+  communityPosts    String   // JSON array of 5 community post ideas
+  youtubeShorts     String   // JSON array of 5 YouTube Shorts scripts
+  blogArticle       String   // Full blog article
+  linkedInPost      String   // LinkedIn post
+  facebookPost      String   // Facebook post
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+  @@index([scriptId])
+}
+
+model SEOScorecard {
+  id                     String   @id @default(cuid())
+  userId                 String
+  scriptId               String   @unique
+  script                 Script   @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+  keywordOptimization    Int      @default(0)  // 0-100
+  ctrPotential           Int      @default(0)  // 0-100
+  searchIntentMatch      Int      @default(0)  // 0-100
+  readability            Int      @default(0)  // 0-100
+  engagementPotential    Int      @default(0)  // 0-100
+  overallScore           Int      @default(0)  // 0-100
+  recommendations        String   // JSON array of improvement suggestions
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([userId])
+  @@index([scriptId])
 }
