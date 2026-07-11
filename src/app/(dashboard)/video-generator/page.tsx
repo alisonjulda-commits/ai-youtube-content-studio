@@ -38,19 +38,30 @@ const CATEGORY_TO_COMPOSITION: Record<string, string> = {
 interface VideoGenerationJob {
   videoId: string;
   scriptId: string;
-  status: 'generating' | 'completed' | 'failed';
+  status: 'generating' | 'audio' | 'rendering' | 'completed' | 'failed';
   progress: number;
   voiceoverUrls: Record<string, string>;
   totalSeconds: number;
   downloadUrl?: string;
   compositionId?: string;
+  audioProgress?: number;
 }
+
+const VOICE_PRESETS = [
+  { id: 'professional', label: 'Professional' },
+  { id: 'friendly', label: 'Friendly' },
+  { id: 'energetic', label: 'Energetic' },
+  { id: 'calm', label: 'Calm' },
+  { id: 'authoritative', label: 'Authoritative' },
+];
 
 export default function VideoGeneratorPage() {
   const [scripts, setScripts] = useState<Script[]>([]);
   const [selectedScript, setSelectedScript] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ai-tools');
+  const [selectedVoicePreset, setSelectedVoicePreset] = useState<string>('professional');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const [generationJobs, setGenerationJobs] = useState<VideoGenerationJob[]>([]);
   const [selectedScriptData, setSelectedScriptData] = useState<Script | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -80,11 +91,44 @@ export default function VideoGeneratorPage() {
     setIsPreviewOpen(true);
   }
 
+  async function generateVoiceover() {
+    if (!selectedScript) return;
+
+    setIsGeneratingAudio(true);
+    try {
+      const response = await fetch('/api/scripts/audio', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          scriptId: selectedScript,
+          voicePreset: selectedVoicePreset,
+          provider: 'mock', // Use mock by default, can switch to 'openai' with API key
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Voiceover generated:', data);
+        return data.voiceoverUrls;
+      }
+    } catch (error) {
+      console.error('Failed to generate voiceover:', error);
+    } finally {
+      setIsGeneratingAudio(false);
+    }
+    return {};
+  }
+
   async function handleGenerateVideo() {
     if (!selectedScript || !selectedScriptData) return;
 
     setIsLoading(true);
     try {
+      // Step 1: Generate voiceover
+      const voiceoverUrls = await generateVoiceover();
+
       const sections = [
         { id: 'hook', text: selectedScriptData.hook || '', duration: 300 },
         { id: 'intro', text: selectedScriptData.intro || '', duration: 300 },
@@ -94,6 +138,7 @@ export default function VideoGeneratorPage() {
         { id: 'outro', text: selectedScriptData.outro || '', duration: 200 },
       ].filter((s) => s.text.trim());
 
+      // Step 2: Render video
       const response = await fetch('/api/videos/render', {
         method: 'POST',
         headers: {
@@ -107,6 +152,7 @@ export default function VideoGeneratorPage() {
           category: selectedCategory,
           compositionId: CATEGORY_TO_COMPOSITION[selectedCategory],
           sections,
+          voiceoverUrls,
         }),
       });
 
@@ -172,6 +218,20 @@ export default function VideoGeneratorPage() {
               </Select>
             </div>
 
+            <div>
+              <label className="text-sm font-medium">Voice Preset</label>
+              <Select
+                value={selectedVoicePreset}
+                onChange={(e) => setSelectedVoicePreset(e.target.value)}
+              >
+                {VOICE_PRESETS.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.label}
+                  </option>
+                ))}
+              </Select>
+            </div>
+
             {selectedScriptData && (
               <div className="space-y-2 p-3 rounded-lg bg-muted">
                 <div className="text-sm">
@@ -197,22 +257,22 @@ export default function VideoGeneratorPage() {
               </Button>
               <Button
                 onClick={handleGenerateVideo}
-                disabled={!selectedScript || isLoading}
+                disabled={!selectedScript || isLoading || isGeneratingAudio}
                 className="flex-1 gap-2"
               >
                 <Film className="w-4 h-4" />
-                {isLoading ? 'Generating...' : 'Render'}
+                {isGeneratingAudio ? 'Creating Audio...' : isLoading ? 'Rendering...' : 'Render'}
               </Button>
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Video rendering will:
+              Video generation pipeline:
               <br />
-              1. Create TTS voiceover from script
+              1. 🎙️ Generate TTS voiceover
               <br />
-              2. Sync with background music
+              2. 🎵 Sync with background
               <br />
-              3. Render with Remotion
+              3. 🎬 Render with Remotion
             </p>
           </CardContent>
         </Card>
@@ -240,19 +300,39 @@ export default function VideoGeneratorPage() {
                               {Math.round(job.totalSeconds)}s • {Object.keys(job.voiceoverUrls).length} sections
                             </p>
                           </div>
-                          <div className="text-sm font-semibold">
+                          <div className="text-sm font-semibold text-right">
                             {job.status === 'completed' && <span className="text-green-500">✓ Ready</span>}
+                            {job.status === 'audio' && <span className="text-blue-500">🎙️ Audio</span>}
+                            {job.status === 'rendering' && <span className="text-blue-500">🎬 {job.progress}%</span>}
                             {job.status === 'generating' && <span className="text-blue-500">⏳ {job.progress}%</span>}
                             {job.status === 'failed' && <span className="text-red-500">✗ Error</span>}
                           </div>
                         </div>
 
-                        {job.status === 'generating' && (
-                          <div className="w-full bg-muted rounded-full h-2">
-                            <div
-                              className="bg-primary h-2 rounded-full transition-all"
-                              style={{ width: `${job.progress}%` }}
-                            />
+                        {(job.status === 'audio' || job.status === 'rendering' || job.status === 'generating') && (
+                          <div className="space-y-1">
+                            {job.status === 'audio' && (
+                              <>
+                                <div className="text-xs text-muted-foreground">Generating voiceover...</div>
+                                <div className="w-full bg-muted rounded-full h-2">
+                                  <div
+                                    className="bg-yellow-500 h-2 rounded-full transition-all"
+                                    style={{ width: `${job.audioProgress || 30}%` }}
+                                  />
+                                </div>
+                              </>
+                            )}
+                            {(job.status === 'rendering' || job.status === 'generating') && (
+                              <>
+                                <div className="text-xs text-muted-foreground">Rendering video...</div>
+                                <div className="w-full bg-muted rounded-full h-2">
+                                  <div
+                                    className="bg-primary h-2 rounded-full transition-all"
+                                    style={{ width: `${job.progress}%` }}
+                                  />
+                                </div>
+                              </>
+                            )}
                           </div>
                         )}
 

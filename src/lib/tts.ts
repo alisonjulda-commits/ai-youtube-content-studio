@@ -1,96 +1,215 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import path from 'path';
-import fs from 'fs/promises';
+// Text-to-Speech service for generating voiceovers
 
-const execAsync = promisify(exec);
-
-interface VoiceConfig {
-  voice: string; // e.g., 'en-us+f1' for female US English
-  speed: number; // 50-200, default 150
-  pitch: number; // 0-100, default 50
+export interface TTSOptions {
+  provider: 'openai' | 'elevenlabs' | 'mock';
+  voiceId?: string;
+  speed?: number;
+  pitch?: number;
 }
 
-const DEFAULT_VOICE_CONFIG: VoiceConfig = {
-  voice: 'en-us+f1', // Female voice with good English pronunciation
-  speed: 150,
-  pitch: 50,
+export interface AudioSegment {
+  id: string;
+  text: string;
+  duration: number; // in seconds
+  url?: string;
+  error?: string;
+}
+
+const DEFAULT_OPTIONS: TTSOptions = {
+  provider: 'openai',
+  voiceId: 'nova',
+  speed: 1.0,
+  pitch: 1.0,
 };
 
-export async function generateVoiceover(
+export async function generateTTSAudio(
   text: string,
-  outputPath: string,
-  voiceConfig: VoiceConfig = DEFAULT_VOICE_CONFIG
-): Promise<{ path: string; duration: number }> {
+  options: Partial<TTSOptions> = {}
+): Promise<AudioSegment> {
+  const config = { ...DEFAULT_OPTIONS, ...options };
+
   try {
-    // Ensure output directory exists
-    const dir = path.dirname(outputPath);
-    await fs.mkdir(dir, { recursive: true });
-
-    // Generate TTS with espeak-ng
-    const rawWavPath = outputPath.replace('.mp3', '.raw.wav');
-
-    await execAsync(
-      `espeak-ng -v "${voiceConfig.voice}" -s ${voiceConfig.speed} -p ${voiceConfig.pitch} -w "${rawWavPath}" "${text}"`
-    );
-
-    // Process and enhance audio with FFmpeg
-    await execAsync(
-      `ffmpeg -nostdin -y -loglevel error -i "${rawWavPath}" ` +
-      `-af "highpass=f=85:poles=2,` +
-      `treble=g=5:f=3500,` +
-      `bass=g=2:f=200,` +
-      `equalizer=f=6000:t=q:width_type=h:width=0.8:g=-2,` +
-      `compand=attacks=0.04:decays=0.25:points=-80/-80|-50/-30|-20/-15|0/0:soft-knee=8:gain=4:volume=-0:delay=0.04,` +
-      `aecho=0.4:0.08:60:0.35,` +
-      `loudnorm=I=-13:TP=-1:LRA=8" ` +
-      `-ar 44100 -ac 1 -b:a 128k "${outputPath}" < /dev/null`
-    );
-
-    // Get duration
-    const { stdout } = await execAsync(
-      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${outputPath}"`
-    );
-    const duration = parseFloat(stdout);
-
-    // Clean up raw file
-    await fs.unlink(rawWavPath).catch(() => {});
-
-    return { path: outputPath, duration };
-  } catch (error) {
-    console.error('Failed to generate voiceover:', error);
-    throw error;
-  }
-}
-
-export async function generateMultipleVoiceovers(
-  sections: Array<{ id: string; text: string }>,
-  outputDir: string,
-  voiceConfig?: VoiceConfig
-): Promise<Record<string, { path: string; duration: number }>> {
-  const results: Record<string, { path: string; duration: number }> = {};
-
-  for (const section of sections) {
-    const outputPath = path.join(outputDir, `${section.id}.mp3`);
-    try {
-      results[section.id] = await generateVoiceover(section.text, outputPath, voiceConfig);
-    } catch (error) {
-      console.error(`Failed to generate voiceover for ${section.id}:`, error);
-      throw error;
+    if (config.provider === 'openai') {
+      return await generateOpenAITTS(text, config);
+    } else if (config.provider === 'elevenlabs') {
+      return await generateElevenLabsTTS(text, config);
+    } else if (config.provider === 'mock') {
+      return generateMockTTS(text);
     }
-  }
 
-  return results;
-}
-
-export async function getVoiceoverDuration(filePath: string): Promise<number> {
-  try {
-    const { stdout } = await execAsync(
-      `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`
-    );
-    return parseFloat(stdout);
+    throw new Error(`Unknown TTS provider: ${config.provider}`);
   } catch (error) {
-    console.error('Failed to get voiceover duration:', error);
+    console.error('TTS generation failed:', error);
     throw error;
   }
+}
+
+async function generateOpenAITTS(
+  text: string,
+  config: TTSOptions
+): Promise<AudioSegment> {
+  const apiKey = process.env.OPENAI_API_KEY;
+
+  if (!apiKey) {
+    console.warn('OPENAI_API_KEY not configured, using mock TTS');
+    return generateMockTTS(text);
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/audio/speech', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'tts-1-hd',
+        input: text,
+        voice: config.voiceId || 'nova',
+        speed: config.speed || 1.0,
+        response_format: 'mp3',
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI TTS failed: ${response.statusText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+    const url = URL.createObjectURL(blob);
+
+    const wordCount = text.split(/\s+/).length;
+    const estimatedDuration = (wordCount / 150) * 60;
+
+    return {
+      id: `tts-${Date.now()}`,
+      text,
+      duration: estimatedDuration,
+      url,
+    };
+  } catch (error) {
+    console.error('OpenAI TTS error:', error);
+    throw error;
+  }
+}
+
+async function generateElevenLabsTTS(
+  text: string,
+  config: TTSOptions
+): Promise<AudioSegment> {
+  const apiKey = process.env.ELEVENLABS_API_KEY;
+
+  if (!apiKey) {
+    console.warn('ELEVENLABS_API_KEY not configured, using mock TTS');
+    return generateMockTTS(text);
+  }
+
+  try {
+    const voiceId = config.voiceId || 'EXAVITQu4aSCm7NB5ESt';
+    const response = await fetch(
+      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+      {
+        method: 'POST',
+        headers: {
+          'xi-api-key': apiKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text,
+          model_id: 'eleven_monolingual_v1',
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75,
+          },
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`ElevenLabs TTS failed: ${response.statusText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
+    const url = URL.createObjectURL(blob);
+
+    const wordCount = text.split(/\s+/).length;
+    const estimatedDuration = (wordCount / 150) * 60;
+
+    return {
+      id: `tts-${Date.now()}`,
+      text,
+      duration: estimatedDuration,
+      url,
+    };
+  } catch (error) {
+    console.error('ElevenLabs TTS error:', error);
+    throw error;
+  }
+}
+
+function generateMockTTS(text: string): AudioSegment {
+  const wordCount = text.split(/\s+/).length;
+  const estimatedDuration = (wordCount / 150) * 60;
+
+  return {
+    id: `tts-${Date.now()}`,
+    text,
+    duration: estimatedDuration,
+    url: `data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAAAAA==`,
+  };
+}
+
+export function estimateAudioDuration(text: string): number {
+  const wordCount = text.split(/\s+/).length;
+  return (wordCount / 150) * 60;
+}
+
+export function calculateScriptDuration(
+  sections: Array<{ text: string }>
+): number {
+  return sections.reduce((total, section) => {
+    return total + estimateAudioDuration(section.text);
+  }, 0);
+}
+
+export async function generateBatchTTS(
+  texts: string[],
+  options: Partial<TTSOptions> = {}
+): Promise<AudioSegment[]> {
+  return Promise.all(texts.map((text) => generateTTSAudio(text, options)));
+}
+
+export const VOICE_PRESETS: Record<string, TTSOptions> = {
+  'professional': {
+    provider: 'openai',
+    voiceId: 'fable',
+    speed: 1.0,
+  },
+  'friendly': {
+    provider: 'openai',
+    voiceId: 'shimmer',
+    speed: 1.0,
+  },
+  'energetic': {
+    provider: 'openai',
+    voiceId: 'alloy',
+    speed: 1.1,
+  },
+  'calm': {
+    provider: 'openai',
+    voiceId: 'echo',
+    speed: 0.9,
+  },
+  'authoritative': {
+    provider: 'openai',
+    voiceId: 'onyx',
+    speed: 0.95,
+  },
+};
+
+export function getVoicePreset(contentType: string): TTSOptions {
+  const preset = VOICE_PRESETS[contentType];
+  return preset || DEFAULT_OPTIONS;
 }
