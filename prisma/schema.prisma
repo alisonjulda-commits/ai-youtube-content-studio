@@ -22,6 +22,7 @@ model User {
   settings           Settings?
   youtubeAuth        YouTubeAuth?
   thumbnailDesigns   ThumbnailDesign[]
+  subtitles          Subtitle[]
 }
 
 model VideoIdea {
@@ -47,6 +48,7 @@ model VideoIdea {
   videoId               String?
   youtubeUploads        YoutubeUpload[]
   thumbnailDesigns      ThumbnailDesign[]
+  subtitles             Subtitle[]
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -218,6 +220,29 @@ model YoutubeUpload {
   @@index([videoIdeaId])
   @@index([status])
   @@index([scheduledPublishAt])
+}
+
+model Subtitle {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  videoIdeaId     String?
+  videoIdea       VideoIdea? @relation(fields: [videoIdeaId], references: [id], onDelete: SetNull)
+  scriptId        String?
+
+  title           String
+  language        String   @default("en")
+  format          String   @default("srt") // srt or vtt
+  content         String   // SRT/VTT content
+  lines           String   // JSON array of subtitle lines
+
+  status          String   @default("draft") // draft, reviewed, ready
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([userId])
+  @@index([videoIdeaId])
+  @@index([scriptId])
 }
 
 model ThumbnailDesign {
