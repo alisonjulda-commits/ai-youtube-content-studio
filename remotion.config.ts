@@ -1,10 +1,19 @@
 // Remotion configuration
-// Composition settings are defined in individual compositions
-// Global defaults can be set here if needed
+import { Config } from '@remotion/cli/config';
+
+Config.setCodec('h264');
+Config.setAudioBitrate('192k');
+Config.setAudioCodec('aac');
+Config.setCrf(18);
+
+// Use pre-installed Chromium
+if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+  Config.setBrowserExecutable(process.env.PUPPETEER_EXECUTABLE_PATH);
+}
 
 export const REMOTION_CONFIG = {
   fps: 30,
-  durationInFrames: 1800, // 60 seconds at 30fps
+  durationInFrames: 1800,
   width: 1080,
   height: 1920,
   codec: 'h264',
